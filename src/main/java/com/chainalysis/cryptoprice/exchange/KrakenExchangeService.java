@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.math.BigDecimal;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,32 +19,27 @@ public class KrakenExchangeService implements ExchangeService {
 
     @Override
     public String getPrice(String coinSymbol) {
-        // Kraken uses different symbol
-        if(coinSymbol.equals("BTC")) {
-            coinSymbol = "XBT";
-        }
-
         URI price = ExchangeService.buildURI("https://api.kraken.com/0/public/Ticker?pair=" + coinSymbol + "USD");
         String result = restTemplate.getForObject(price, String.class);
 
         JSONObject priceObj = new JSONObject(result);
         JSONArray lastSoldPriceArr = priceObj.getJSONObject("result")
-                .getJSONObject("XXBTZUSD")
+                .getJSONObject("X" + coinSymbol + "ZUSD")
                 .getJSONArray("c");
 
         return lastSoldPriceArr.getString(0);
     }
 
     @Override
-    public Map<String, String> getFees() {
+    public Map<String, String> getFees(String coinSymbol) {
         Map<String, String> fees = new HashMap<>();
-        URI krakenFeesUri = ExchangeService.buildURI("https://api.kraken.com/0/public/AssetPairs?pair=XXBTZUSD");
+        URI krakenFeesUri = ExchangeService.buildURI("https://api.kraken.com/0/public/AssetPairs?pair=X" + coinSymbol + "ZUSD");
         String result = restTemplate.getForObject(krakenFeesUri, String.class);
 
         JSONObject resultObj = new JSONObject(result);
         JSONObject feesObj = new JSONObject(resultObj)
                 .getJSONObject("result")
-                .getJSONObject("XXBTZUSD");
+                .getJSONObject("X" + coinSymbol + "ZUSD");
 
         String takerFees = feesObj
                 .getJSONArray("fees")
@@ -60,8 +56,24 @@ public class KrakenExchangeService implements ExchangeService {
 
     @Override
     public Map<String, String> getBuySellPrice(String coinSymbol) {
+        // Kraken uses different symbol
+        if(coinSymbol.equals("BTC")) {
+            coinSymbol = "XBT";
+        }
 
-        return null;
+        BigDecimal price = new BigDecimal(getPrice(coinSymbol));
+        Map<String, String> fees = getFees(coinSymbol);
+
+        BigDecimal buyersFee = new BigDecimal(fees.get("takerFees"));
+        BigDecimal sellersFee = new BigDecimal(fees.get("makerFees"));
+
+        String buyPrice = ExchangeService.calculatePrice(price, buyersFee);
+        String sellPrice = ExchangeService.calculatePrice(price, sellersFee);
+
+        return Map.of(
+                "buyPrice", buyPrice,
+                "sellPrice", sellPrice
+        );
     }
 
 
