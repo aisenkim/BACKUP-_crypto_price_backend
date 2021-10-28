@@ -14,14 +14,19 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ExchangeController {
 
-    private final KrakenExchangeService exchangeService;
+    private final KrakenExchangeService krakenExchangeService;
+    private final BlockchainExchangeService blockchainExchangeService;
+
 
     @GetMapping
     public ResponseEntity<Map<String, String>> getBuySellPrice(
             @RequestParam String exchange,
             @RequestParam String coinSymbol
     ) {
-        return ResponseEntity.ok().body(exchangeService.getBuySellPrice(coinSymbol));
+        if(exchange.equals("kraken"))
+            return ResponseEntity.ok().body(krakenExchangeService.getBuySellPrice(coinSymbol));
+        else
+            return ResponseEntity.ok().body(blockchainExchangeService.getBuySellPrice(coinSymbol));
     }
 
 }

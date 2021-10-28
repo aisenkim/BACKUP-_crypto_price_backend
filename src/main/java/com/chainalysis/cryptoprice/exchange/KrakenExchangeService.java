@@ -6,9 +6,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -22,8 +24,9 @@ public class KrakenExchangeService implements ExchangeService {
         URI price = ExchangeService.buildURI("https://api.kraken.com/0/public/Ticker?pair=" + coinSymbol + "USD");
         String result = restTemplate.getForObject(price, String.class);
 
-        JSONObject priceObj = new JSONObject(result);
-        JSONArray lastSoldPriceArr = priceObj.getJSONObject("result")
+        JSONObject resultObj = new JSONObject(result);
+
+        JSONArray lastSoldPriceArr = resultObj.getJSONObject("result")
                 .getJSONObject("X" + coinSymbol + "ZUSD")
                 .getJSONArray("c");
 
@@ -36,20 +39,19 @@ public class KrakenExchangeService implements ExchangeService {
         URI krakenFeesUri = ExchangeService.buildURI("https://api.kraken.com/0/public/AssetPairs?pair=X" + coinSymbol + "ZUSD");
         String result = restTemplate.getForObject(krakenFeesUri, String.class);
 
-        JSONObject resultObj = new JSONObject(result);
-        JSONObject feesObj = new JSONObject(resultObj)
+        JSONObject feesObj = new JSONObject(result)
                 .getJSONObject("result")
                 .getJSONObject("X" + coinSymbol + "ZUSD");
 
-        String takerFees = feesObj
+        JSONArray takerFees = (JSONArray) feesObj
                 .getJSONArray("fees")
-                .getString(0);
-        String makerFees = feesObj
+                .get(0);
+        JSONArray makerFees = (JSONArray) feesObj
                 .getJSONArray("fees_maker")
-                .getString(0);
+                .get(0);
 
-        fees.put("takerFees", takerFees);
-        fees.put("makerFees", makerFees);
+        fees.put("takerFees", String.valueOf(takerFees.get(1)));
+        fees.put("makerFees", String.valueOf(makerFees.get(1)));
 
         return fees;
     }
